@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import linalg as la
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from scipy.optimize import minimize
 
 class MarkovChain:
     """A Markov chain with finitely many states.
@@ -139,3 +141,67 @@ class MarkovChain:
             iter += 1
         
         raise ValueError('Did not converge')
+    
+
+class LogReg:
+
+    def __init__(self, X, y, verbose=False, beta0=None):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1, shuffle=False)
+
+        if beta0 is None:
+            beta0 = np.zeros(X.shape[1])
+
+
+        res = minimize(
+            self.obj_,
+            beta0,
+            args=(X_train, y_train),
+            jac=self.grad_,              # <--- supply gradient
+            method="L-BFGS-B",
+            options={"maxiter": 1000}
+        )
+
+        # Get results of minimization
+        self.message = res.message
+        self.success = res.success
+        self.beta = res.x
+
+        # Calculate normed error
+        beta = res.x
+        z = X_test @ beta
+        self.pred = 1 / (1 + np.exp(-z))
+        self.normed_error = la.norm(self.pred - y_test)
+
+        # Calculate hessian at minimizer and eigenvalues
+        H = self.hessian_(beta, X)
+        self.hessian_eigenvals = np.real(la.eigvals(H))
+
+        if verbose:
+            print(self.message)
+            print("success:", self.success)
+            print("beta:", self.beta)
+            print("-" * 100)
+            print(f"Normed Error: {self.normed_error}")
+            print("-"* 100)
+            print("Eigenvalues: ", self.hessian_eigenvals)
+
+
+    def obj_(self, beta, X, y):
+        beta = np.asarray(beta)
+        z = X @ beta
+        # negative log-likelihood, stable form
+        # l = sum( log(1 + exp(z)) - y*z )
+        return np.sum(np.logaddexp(0, z) - y * z)
+    
+    def grad_(self, beta, X, y):
+        beta = np.asarray(beta)
+        z = X @ beta
+        p = 1 / (1 + np.exp(-z))  # sigmoid
+        # gradient: X^T (p - y)
+        return X.T @ (p - y)
+    
+    def hessian_(self, beta, X):
+        z = X @ beta
+        p = 1 / (1 + np.exp(-z))
+        w = p * (1 - p)
+        return X.T * w @ X  # broadcasting trick; still Xᵀ W X
