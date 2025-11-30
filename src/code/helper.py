@@ -4,6 +4,12 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from scipy.optimize import minimize
+from sklearn import metrics
+from sklearn.metrics import (
+    precision_score, recall_score, f1_score, roc_auc_score,
+    average_precision_score, confusion_matrix
+)
+import matplotlib.pyplot as plt
 
 class MarkovChain:
     """A Markov chain with finitely many states.
@@ -146,9 +152,10 @@ class MarkovChain:
 
 class LogReg:
 
-    def __init__(self, intercept=True, scale=True):
+    def __init__(self, intercept=True, scale=True, loss_beta=1):
         self.intercept = intercept
-        self.scale= scale
+        self.scale = scale
+        self.loss_beta = loss_beta
 
     def obj_(self, beta, X, y):
         beta = np.asarray(beta)
@@ -168,15 +175,18 @@ class LogReg:
         z = X @ beta
         p = 1 / (1 + np.exp(-z))
         w = p * (1 - p)
-        return X.T * w @ X  # broadcasting trick; still Xᵀ W X
+        return X.T * w @ X 
     
     def fit(self, X, y, beta0=None, verbose=True):
-        if self.scale:
-            scaler = StandardScaler()
-            X = scaler.fit_transform(X)
+        if X is None:
+            X = np.ones_like(y)
+        else:
+            if self.scale:
+                scaler = StandardScaler()
+                X = scaler.fit_transform(X)
 
-        if self.intercept:
-            X = np.column_stack([np.ones(X.shape[0]), X])
+            if self.intercept:
+                X = np.column_stack([np.ones(X.shape[0]), X])
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1, shuffle=False)
 
@@ -216,3 +226,108 @@ class LogReg:
             print(f"Normed Error: {self.normed_error}")
             print("-"* 100)
             print("Eigenvalues: ", self.hessian_eigenvals)
+
+        self.y_test, self.X_test = y_test, X_test
+
+        precision, recall, thresholds =  metrics.precision_recall_curve(self.y_test, self.pred)
+        self.threshold_, _, _ = self._get_best_threshold(precision, recall, thresholds, self.fbeta_loss)
+
+        self.eval()
+
+    def fbeta_loss(self, p, r, loss_beta=None):
+        if not loss_beta:
+            loss_beta = self.loss_beta
+        return 1 - (1 + loss_beta**2) * p * r / (loss_beta**2 * p + r + 1e-12)
+
+    
+    def _get_best_threshold(self, precision, recall, thresholds, loss_fn):
+        precision = precision[1:]
+        recall = recall[1:]
+        losses = np.array([loss_fn(p, r) for p, r, in zip(precision, recall)])
+        best_idx = np.argmin(losses)
+        return thresholds[best_idx], precision[best_idx], recall[best_idx]
+
+    def precision_recall_curve(self, label=None, ax=None, beta=1):
+        "Returns precision, recall, thresholds"
+        
+        precision, recall, thresholds =  metrics.precision_recall_curve(self.y_test, self.pred)
+        best_t, best_p, best_r = self._get_best_threshold(precision, recall, thresholds, self.fbeta_loss)
+        
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        label = f"{label} (BT {best_t:.3f})"
+
+        # precision_monotone = np.maximum.accumulate(precision[::-1])[::-1]
+        ax.plot(recall, precision, drawstyle="steps-post", label=label)
+        
+        return ax
+    
+    def roc_curve(self):
+        """returns fpr, tpr, thresholds"""
+        return metrics.roc_curve(self.y_test, self.pred)
+    
+
+    def eval(self, threshold=None, save=True):
+        """
+        Evaluate binary classifier at a fixed threshold.
+        
+        Parameters
+        ----------
+        y_true : array-like, shape (n_samples,)
+            True binary labels (0 or 1)
+        y_score : array-like, shape (n_samples,)
+            Scores or probabilities from the model
+        threshold : float
+            Decision threshold: predict 1 if y_score >= threshold
+        
+        Returns
+        -------
+        metrics : dict
+            Dictionary containing precision, recall, misclassification rate,
+            accuracy, F1, AUCs, and confusion matrix entries.
+        """
+        if threshold is None:
+            threshold = self.threshold_
+
+        # Convert to predictions
+        y_pred = (self.pred >= threshold).astype(int)
+
+        # Confusion matrix
+        tn, fp, fn, tp = confusion_matrix(self.y_test, y_pred).ravel()
+
+        # Basic metrics
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
+        misclassification_rate = 1 - accuracy
+
+        precision = precision_score(self.y_test, y_pred, zero_division=0)
+        recall = recall_score(self.y_test, y_pred, zero_division=0)
+        f1 = f1_score(self.y_test, y_pred, zero_division=0)
+
+        # Threshold-free metrics (based on scores)
+        roc_auc = roc_auc_score(self.y_test, self.pred)
+        pr_auc = average_precision_score(self.y_test, self.pred)
+
+        if save:
+            self.threshold_ = threshold
+            self.TP_ = tp; self.FP_ = fp; self.TN_ = tn; self.FN_ = fn
+            self.accuracy_ = accuracy
+            self.misclass_rate_ = misclassification_rate
+            self.precision_ = precision
+            self.recall_ = recall
+            self.f1_ = f1
+            self.roc_auc_ = roc_auc
+            self.pr_auc_ = pr_auc
+
+
+        return {
+            "threshold": threshold,
+            "TP": tp, "FP": fp, "TN": tn, "FN": fn,
+            "accuracy": accuracy,
+            "misclassification_rate": misclassification_rate,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "roc_auc": roc_auc,
+            "pr_auc": pr_auc,
+        }
