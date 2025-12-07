@@ -1,7 +1,10 @@
 Let us define $Y$ as the random variable signifying whether it rains or not. Thus it is binary with support ${0, 1}$. $Y$ is conditioned on another random variable $X$, with support in $\mathbb{R}^d$. The distribution of $Y$ given $X$ is assumed to be Bernoulli:
-$$Y | X ~ Bernoulli(sigm(X^T\beta))$$
+$$Y | X \sim Bernoulli(sigm(X^T\beta))$$
 Where $\beta$ is our vector of parameters and 
 $$sigm(x) = \frac{1}{1 + e^{-x}}$$
+
+It's as if we have a family of Bernoulli random variables "indexed" by instances of data. When we fit a logistic regression model, we are matching data instances to their Bernoulli random variable.
+
 ![Sigmoid curve](images/sigmoid.png)
 
 Given a draw of length n of the form $D = {(\textbf{x}_1, y_1), ..., (\textbf{x}_n, y_n)}$ we with to estimate $\beta$. We will use the maximum likelihood estimator. The likelihood of $\beta$ is given by 
