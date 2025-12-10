@@ -1,5 +1,7 @@
 # Quantifying the Lake Effect in Sheboygan
-Predicting lake-effect precipitation patterns in Sheboygan, Wisconsin using a simple Markov model and NOAA buoy / airport weather data
+Predicting lake-effect precipitation patterns in Sheboygan, Wisconsin using a simple Markov model and data from NOAA buoys and airport weather stations.
+
+[Jump to Repo Organization](#repository-layout)
 
 ## Overview of project
 ### Motivation
@@ -36,7 +38,7 @@ As a application of the [manifold boundary approximation method (MBAM)](https://
 ![Visualizing the efficacy of prediction models with varying amounts of parameters. I removed four sloppy parameters without a drop in predictive power.](src/code/figures/normal_logreg.png)
 
 #### Logistic Regression with Lake Effect
-I also found a logistic regression fit when including lake effect factors in the model, namely water temperature, wind direction, and a blowing-on-shore binary indicator. These are represented by $w_t$, $\theta$ , and $I__O$ respectively.
+I also found a logistic regression fit when including lake effect factors in the model, namely water temperature, wind direction, and a blowing-on-shore binary indicator. These are represented by $w_t$, $\theta$ , and $I_O$ respectively.
 
 $$P(Y=1) = \text{logit}^{-1}(\beta_0+\beta_1\sin(\frac{2\pi d}{365}) + \beta_2\cos(\frac{2\pi d}{365}) + \beta_3r_{t-1} + \beta_4h + \beta_5p + \beta_6v + \beta_7\rho + \beta_8\sin(\theta) + \beta_9\cos(\theta) + \beta_{10}wt + \beta_{11}I_O)$$
 
@@ -60,9 +62,9 @@ Nonetheless this is a fun dataset that is well equipped for lots of different ki
 Gratifyingly a naively trained RandomForestClassifier from scikit-learn underperformed both logistic regression models, with accuracy 63% and F1 score of 0.57.
 
 ## Sources
-[1] Iowa Environmental Mesonet. (2000–2024). SBM ASOS daily climate data (WI_ASOS). Iowa State University. Retrieved from https://mesonet.agron.iastate.edu/
-[2] National Data Buoy Center. (2000–2024). SGNW3 – Sheboygan, WI nearshore environmental data. NOAA. Retrieved from https://www.ndbc.noaa.gov/.
-[3] NOAA Great Lakes Environmental Research Laboratory. (2000–2024). Great Lakes Surface Environmental Analysis (GLSEA) water temperature. NOAA GLERL. Retrieved from https://www.glerl.noaa.gov/.
+[1] Iowa Environmental Mesonet. (2000–2024). SBM ASOS daily climate data (WI_ASOS). Iowa State University. Retrieved from https://mesonet.agron.iastate.edu/  
+[2] National Data Buoy Center. (2000–2024). SGNW3 – Sheboygan, WI nearshore environmental data. NOAA. Retrieved from https://www.ndbc.noaa.gov/.  
+[3] NOAA Great Lakes Environmental Research Laboratory. (2000–2024). Great Lakes Surface Environmental Analysis (GLSEA) water temperature. NOAA GLERL. Retrieved from https://www.glerl.noaa.gov/  
 
 
 ## Repository Layout
